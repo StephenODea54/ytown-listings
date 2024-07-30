@@ -1,2 +1,4 @@
 aws-cdk-lib==2.144.0
 constructs>=10.0.0,<11.0.0
+# Optional
+# pre-commit==3.7.1
