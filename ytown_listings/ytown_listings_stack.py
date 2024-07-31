@@ -3,6 +3,7 @@ from aws_cdk import (
     Stack,
 )
 from ytown_listings.s3_stack import S3Stack
+from ytown_listings.secrets_stack import SecretsStack
 
 
 class YtownListingsStack(Stack):
@@ -10,3 +11,4 @@ class YtownListingsStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
 
         s3_buckets = S3Stack(self)
+        secrets = SecretsStack(self)
