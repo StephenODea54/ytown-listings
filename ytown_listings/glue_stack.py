@@ -7,18 +7,18 @@ class GlueStack(NestedStack):
     def __init__(
         self,
         scope: Construct,
-        *,
-        buckets: dict[str, s3.IBucket],
     ) -> None:
         super().__init__(scope, "ytown-listings-glue")
 
-        raw_bucket = buckets.get("raw_bucket")
+        def create_glue_database(layer: str) -> glue.CfnDatabase:
+            return glue.CfnDatabase(
+                self,
+                f"ytown_listings_{layer}_db",
+                catalog_id=ACCOUNT_ID,
+                database_input=glue.CfnDatabase.DatabaseInputProperty(
+                    name=f"ytown_listings_{layer}_db"
+                ),
+            )
 
-        raw_db = glue.CfnDatabase(
-            self,
-            "ytown_listings_raw_db",
-            catalog_id=ACCOUNT_ID,
-            database_input=glue.CfnDatabase.DatabaseInputProperty(
-                name="ytown_listings_raw_db"
-            ),
-        )
+        raw_db = create_glue_database("raw")
+        staged_db = create_glue_database("staged")

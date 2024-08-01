@@ -13,9 +13,4 @@ class YtownListingsStack(Stack):
 
         s3_buckets = S3Stack(self)
         secrets = SecretsStack(self)
-        glue_jobs = GlueStack(
-            self,
-            buckets={
-                "raw_bucket": s3_buckets.raw_bucket,
-            },
-        )
+        glue_jobs = GlueStack(self)
