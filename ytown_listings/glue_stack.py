@@ -22,3 +22,4 @@ class GlueStack(NestedStack):
 
         raw_db = create_glue_database("raw")
         staged_db = create_glue_database("staged")
+        curated_db = create_glue_database("curated")
