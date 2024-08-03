@@ -1,5 +1,5 @@
 from constructs import Construct
-from aws_cdk import aws_glue as glue, aws_iam as iam, aws_s3 as s3, NestedStack
+from aws_cdk import aws_athena as athena, aws_glue as glue, aws_iam as iam, aws_s3 as s3, aws_s3_deployment as s3_deployment, NestedStack
 from ytown_listings.config import ACCOUNT_ID, REGION
 
 
@@ -7,6 +7,8 @@ class GlueStack(NestedStack):
     def __init__(
         self,
         scope: Construct,
+        buckets: dict[str, s3.Bucket],
+        workgroup: athena.CfnWorkGroup
     ) -> None:
         super().__init__(scope, "ytown-listings-glue")
 
@@ -23,3 +25,184 @@ class GlueStack(NestedStack):
         raw_db = create_glue_database("raw")
         staged_db = create_glue_database("staged")
         curated_db = create_glue_database("curated")
+
+        glue_job_policy = iam.Policy(
+            self,
+            id="YtownListingsGlueJobPolicy",
+            policy_name="YtownListingsGlueJobPolicy",
+            statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "s3:ListBucket",
+                    ],
+                    resources=[
+                        buckets.get("raw_bucket").bucket_arn,
+                        buckets.get("scripts_bucket").bucket_arn,
+                        buckets.get("staged_bucket").bucket_arn,
+                        buckets.get("curated_bucket").bucket_arn,
+                        buckets.get("athena_bucket").bucket_arn,
+                    ],
+                ),
+                iam.PolicyStatement(
+                    actions=[
+                        "s3:GetObject",
+                        "s3:GetObjectAcl",
+                        "s3:GetBucketLocation",
+                        "s3:ListBucketMultipartUploads",
+                        "s3:ListMultipartUploadParts",
+                    ],
+                    resources=[
+                        f"{buckets.get("raw_bucket").bucket_arn}/listings",
+                        f"{buckets.get("raw_bucket").bucket_arn}/listings/*",
+                        f"{buckets.get("staged_bucket").bucket_arn}",
+                        f"{buckets.get("staged_bucket").bucket_arn}/*",
+                        f"{buckets.get("curated_bucket").bucket_arn}/listings",
+                        f"{buckets.get("curated_bucket").bucket_arn}/listings/*",
+                        f"{buckets.get("scripts_bucket").bucket_arn}/listings",
+                        f"{buckets.get("scripts_bucket").bucket_arn}/listings/*",
+                        f"{buckets.get("scripts_bucket").bucket_arn}/listings",
+                        f"{buckets.get("scripts_bucket").bucket_arn}/listings/*",
+                        f"{buckets.get("athena_bucket").bucket_arn}",
+                        f"{buckets.get("athena_bucket").bucket_arn}/*",
+                    ],
+                ),
+                iam.PolicyStatement(
+                    actions=[
+                        "s3:PutObject",
+                        "s3:PutObjectAcl",
+                        "s3:DeleteObject",
+                        "s3:AbortMultipartUpload",
+                    ],
+                    resources=[
+                        f"{buckets.get("staged_bucket").bucket_arn}/listings",
+                        f"{buckets.get("staged_bucket").bucket_arn}/listings/*",
+                        f"{buckets.get("curated_bucket").bucket_arn}/listings",
+                        f"{buckets.get("curated_bucket").bucket_arn}/listings/*",
+                        f"{buckets.get("athena_bucket").bucket_arn}/*",
+                    ],
+                ),
+                iam.PolicyStatement(
+                    actions=[
+                        "athena:Get*",
+                        "athena:Start*",
+                        "glue:Get*",
+                        "glue:List*",
+                        "glue:*Partition*",
+                        "glue:UpdateTable",
+                        "glue:CreateTable",
+                        "glue:DeleteTable",
+                    ],
+                    resources=[
+                        f"arn:aws:glue:{REGION}:{ACCOUNT_ID}:catalog",
+                        f"arn:aws:glue:{REGION}:{ACCOUNT_ID}:database/{raw_db.database_input.name}",
+                        f"arn:aws:glue:{REGION}:{ACCOUNT_ID}:table/{raw_db.database_input.name}/*",
+                        f"arn:aws:glue:{REGION}:{ACCOUNT_ID}:database/{staged_db.database_input.name}",
+                        f"arn:aws:glue:{REGION}:{ACCOUNT_ID}:table/{staged_db.database_input.name}/*",
+                        f"arn:aws:glue:{REGION}:{ACCOUNT_ID}:database/{curated_db.database_input.name}",
+                        f"arn:aws:glue:{REGION}:{ACCOUNT_ID}:table/{curated_db.database_input.name}/*",
+                        f"arn:aws:athena:{REGION}:{ACCOUNT_ID}:workgroup/{workgroup.name}",
+                    ],
+                ),
+            ],
+        )
+
+        glue_job_role = iam.Role(
+            self,
+            id="YtownListingsGlueJobRole",
+            role_name="YtownListingsGlueJobRole",
+            assumed_by=iam.ServicePrincipal("glue.amazonaws.com"),
+        )
+        glue_job_policy.attach_to_role(glue_job_role)
+
+        deployment_scripts = s3_deployment.BucketDeployment(
+            self,
+            "YtownListingsScripts",
+            sources=[s3_deployment.Source.asset("./glue_jobs")],
+            destination_bucket=buckets.get("scripts_bucket"),
+            destination_key_prefix="listings"
+        )
+
+        glue_workflow = glue.CfnWorkflow(
+            self,
+            "YtownListingsGlueWorkflow",
+            name="YtownListingsGlueWorkflow",
+            max_concurrent_runs=3,
+        )
+
+        raw_listings_upload_job = glue.CfnJob(
+            self,
+            id="YtownListingsRawJob",
+            name="YtownListingsRawJob",
+            role=glue_job_role.role_arn,
+            command=glue.CfnJob.JobCommandProperty(
+                name="pythonshell",
+                python_version="3.9",
+                script_location=f"s3://{buckets.get("scripts_bucket").bucket_name}/listings/raw_listings_upload.py",
+            ),
+            default_arguments={
+                "library-set": "analytics",
+                "--enable-job-insights": "true",
+                "--job-language": "python",
+                "--customer-driver-env-vars": f"REGION={REGION}",
+            },
+            glue_version="4.0",
+        )
+
+        staged_listings_upload_job = glue.CfnJob(
+            self,
+            id="YtownListingsStagedJob",
+            name="YtownListingsStagedJob",
+            role=glue_job_role.role_arn,
+            command=glue.CfnJob.JobCommandProperty(
+                name="pythonshell",
+                python_version="3.9",
+                script_location=f"s3://{buckets.get("scripts_bucket").bucket_name}/listings/staged_listings_upload.py",
+            ),
+            default_arguments={
+                "library-set": "analytics",
+                "--enable-job-insights": "true",
+                "--job-language": "python",
+                "--customer-driver-env-vars": f"REGION={REGION}",
+            },
+            glue_version="4.0",
+        )
+
+        curated_listings_upload_job = glue.CfnJob(
+            self,
+            id="YtownListingsCuratedJob",
+            name="YtownListingsCuratedJob",
+            role=glue_job_role.role_arn,
+            command=glue.CfnJob.JobCommandProperty(
+                name="pythonshell",
+                python_version="3.9",
+                script_location=f"s3://{buckets.get("scripts_bucket").bucket_name}/listings/curated_listings_upload.py",
+            ),
+            default_arguments={
+                "library-set": "analytics",
+                "--enable-job-insights": "true",
+                "--job-language": "python",
+                "--customer-driver-env-vars": f"REGION={REGION}",
+            },
+            glue_version="4.0",
+        )
+
+        glue_workflow_trigger = glue.CfnTrigger(
+            self,
+            id="YtownListingsGlueWorkflowTrigger",
+            name="YtownListingsGlueWorkflowTrigger",
+            type="SCHEDULED",
+            actions=[
+                glue.CfnTrigger.ActionProperty(
+                    job_name=raw_listings_upload_job.name,
+                ),
+                glue.CfnTrigger.ActionProperty(
+                    job_name=staged_listings_upload_job.name,
+                ),
+                glue.CfnTrigger.ActionProperty(
+                    job_name=curated_listings_upload_job.name,
+                )
+            ],
+            schedule="cron(0 9 ? * MON *)",
+            start_on_creation=False,
+            workflow_name=glue_workflow.name,
+        )

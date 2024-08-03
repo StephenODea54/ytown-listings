@@ -14,5 +14,15 @@ class YtownListingsStack(Stack):
 
         s3_buckets = S3Stack(self)
         secrets = SecretsStack(self)
-        glue_jobs = GlueStack(self)
         workgroups = AthenaStack(self, athena_bucket=s3_buckets.athena_bucket)
+        glue = GlueStack(
+            self,
+            buckets={
+                "raw_bucket": s3_buckets.raw_bucket,
+                "staged_bucket": s3_buckets.staged_bucket,
+                "curated_bucket": s3_buckets.curated_bucket,
+                "scripts_bucket": s3_buckets.scripts_bucket,
+                "athena_bucket": s3_buckets.athena_bucket,
+            },
+            workgroup=workgroups.workgroup,
+        )
