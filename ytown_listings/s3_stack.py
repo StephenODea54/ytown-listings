@@ -31,4 +31,5 @@ class S3Stack(NestedStack):
 
         self.raw_bucket = create_bucket_configuration("ytown-listings-raw")
         self.staged_bucket = create_bucket_configuration("ytown-listings-staged")
+        self.curated_bucket = create_bucket_configuration("ytown-listings-curated")
         self.athena_bucket = create_bucket_configuration("ytown-listings-athena")
