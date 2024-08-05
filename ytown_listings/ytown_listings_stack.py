@@ -13,6 +13,8 @@ class YtownListingsStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        s3_stack = S3Stack(self)
+
         athena_stack = AthenaStack(self, athena_bucket=s3_stack.athena_bucket)
 
         eventbridge_stack = EventbridgeStack(self)
@@ -28,7 +30,5 @@ class YtownListingsStack(Stack):
             },
             workgroup=athena_stack.workgroup,
         )
-
-        s3_stack = S3Stack(self)
 
         secrets_stack = SecretsStack(self)

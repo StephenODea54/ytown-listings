@@ -1,5 +1,13 @@
 from constructs import Construct
-from aws_cdk import aws_athena as athena, aws_glue as glue, aws_iam as iam, aws_s3 as s3, aws_s3_deployment as s3_deployment, NestedStack
+from aws_cdk import (
+    aws_athena as athena,
+    aws_glue as glue,
+    aws_iam as iam,
+    aws_s3 as s3,
+    aws_s3_deployment as s3_deployment,
+    Fn,
+    NestedStack,
+)
 from ytown_listings.config import ACCOUNT_ID, REGION
 
 
@@ -8,7 +16,7 @@ class GlueStack(NestedStack):
         self,
         scope: Construct,
         buckets: dict[str, s3.Bucket],
-        workgroup: athena.CfnWorkGroup
+        workgroup: athena.CfnWorkGroup,
     ) -> None:
         super().__init__(scope, "ytown-listings-glue")
 
@@ -52,18 +60,18 @@ class GlueStack(NestedStack):
                         "s3:ListMultipartUploadParts",
                     ],
                     resources=[
-                        f"{buckets.get("raw_bucket").bucket_arn}/listings",
-                        f"{buckets.get("raw_bucket").bucket_arn}/listings/*",
-                        f"{buckets.get("staged_bucket").bucket_arn}",
-                        f"{buckets.get("staged_bucket").bucket_arn}/*",
-                        f"{buckets.get("curated_bucket").bucket_arn}/listings",
-                        f"{buckets.get("curated_bucket").bucket_arn}/listings/*",
-                        f"{buckets.get("scripts_bucket").bucket_arn}/listings",
-                        f"{buckets.get("scripts_bucket").bucket_arn}/listings/*",
-                        f"{buckets.get("scripts_bucket").bucket_arn}/listings",
-                        f"{buckets.get("scripts_bucket").bucket_arn}/listings/*",
-                        f"{buckets.get("athena_bucket").bucket_arn}",
-                        f"{buckets.get("athena_bucket").bucket_arn}/*",
+                        f"{buckets.get('raw_bucket').bucket_arn}/listings",
+                        f"{buckets.get('raw_bucket').bucket_arn}/listings/*",
+                        f"{buckets.get('staged_bucket').bucket_arn}",
+                        f"{buckets.get('staged_bucket').bucket_arn}/*",
+                        f"{buckets.get('curated_bucket').bucket_arn}/listings",
+                        f"{buckets.get('curated_bucket').bucket_arn}/listings/*",
+                        f"{buckets.get('scripts_bucket').bucket_arn}/listings",
+                        f"{buckets.get('scripts_bucket').bucket_arn}/listings/*",
+                        f"{buckets.get('scripts_bucket').bucket_arn}/listings",
+                        f"{buckets.get('scripts_bucket').bucket_arn}/listings/*",
+                        f"{buckets.get('athena_bucket').bucket_arn}",
+                        f"{buckets.get('athena_bucket').bucket_arn}/*",
                     ],
                 ),
                 iam.PolicyStatement(
@@ -74,11 +82,11 @@ class GlueStack(NestedStack):
                         "s3:AbortMultipartUpload",
                     ],
                     resources=[
-                        f"{buckets.get("staged_bucket").bucket_arn}/listings",
-                        f"{buckets.get("staged_bucket").bucket_arn}/listings/*",
-                        f"{buckets.get("curated_bucket").bucket_arn}/listings",
-                        f"{buckets.get("curated_bucket").bucket_arn}/listings/*",
-                        f"{buckets.get("athena_bucket").bucket_arn}/*",
+                        f"{buckets.get('staged_bucket').bucket_arn}/listings",
+                        f"{buckets.get('staged_bucket').bucket_arn}/listings/*",
+                        f"{buckets.get('curated_bucket').bucket_arn}/listings",
+                        f"{buckets.get('curated_bucket').bucket_arn}/listings/*",
+                        f"{buckets.get('athena_bucket').bucket_arn}/*",
                     ],
                 ),
                 iam.PolicyStatement(
@@ -114,12 +122,36 @@ class GlueStack(NestedStack):
         )
         glue_job_policy.attach_to_role(glue_job_role)
 
-        deployment_scripts = s3_deployment.BucketDeployment(
+        raw_listings_upload_script = s3_deployment.BucketDeployment(
             self,
-            "YtownListingsScripts",
-            sources=[s3_deployment.Source.asset("./glue_jobs")],
+            "YtownRawListingsUploadScript",
+            sources=[s3_deployment.Source.asset("./glue_jobs/scripts/raw")],
             destination_bucket=buckets.get("scripts_bucket"),
-            destination_key_prefix="listings"
+            destination_key_prefix="listings/raw",
+        )
+
+        staged_listings_upload_script = s3_deployment.BucketDeployment(
+            self,
+            "YtownListingsStagedUploadScript",
+            sources=[s3_deployment.Source.asset("./glue_jobs/scripts/staged")],
+            destination_bucket=buckets.get("scripts_bucket"),
+            destination_key_prefix="listings/staged",
+        )
+
+        curated_listings_upload_script = s3_deployment.BucketDeployment(
+            self,
+            "YtownListingsCuratedUploadScript",
+            sources=[s3_deployment.Source.asset("./glue_jobs/scripts/curated")],
+            destination_bucket=buckets.get("scripts_bucket"),
+            destination_key_prefix="listings/curated",
+        )
+
+        utility_scripts = s3_deployment.BucketDeployment(
+            self,
+            "YtownListingsUtilities",
+            sources=[s3_deployment.Source.asset("./glue_jobs/dist")],
+            destination_bucket=buckets.get("scripts_bucket"),
+            destination_key_prefix="listings/utils",
         )
 
         glue_workflow = glue.CfnWorkflow(
@@ -137,13 +169,13 @@ class GlueStack(NestedStack):
             command=glue.CfnJob.JobCommandProperty(
                 name="pythonshell",
                 python_version="3.9",
-                script_location=f"s3://{buckets.get("scripts_bucket").bucket_name}/listings/raw_listings_upload.py",
+                script_location=f"s3://{buckets.get('scripts_bucket').bucket_name}/listings/raw/raw_listings_upload.py",
             ),
             default_arguments={
                 "library-set": "analytics",
                 "--enable-job-insights": "true",
                 "--job-language": "python",
-                "--customer-driver-env-vars": f"REGION={REGION}",
+                "--extra-py-files": f"s3://{buckets.get('scripts_bucket').bucket_name}/listings/utils/utils-0.1-py3-none-any.whl",
             },
             glue_version="4.0",
         )
@@ -156,13 +188,13 @@ class GlueStack(NestedStack):
             command=glue.CfnJob.JobCommandProperty(
                 name="pythonshell",
                 python_version="3.9",
-                script_location=f"s3://{buckets.get("scripts_bucket").bucket_name}/listings/staged_listings_upload.py",
+                script_location=f"s3://{buckets.get('scripts_bucket').bucket_name}/listings/staged/staged_listings_upload.py",
             ),
             default_arguments={
                 "library-set": "analytics",
                 "--enable-job-insights": "true",
                 "--job-language": "python",
-                "--customer-driver-env-vars": f"REGION={REGION}",
+                "--extra-py-files": f"s3://{buckets.get('scripts_bucket').bucket_name}/listings/utils/utils-0.1-py3-none-any.whl",
             },
             glue_version="4.0",
         )
@@ -175,13 +207,13 @@ class GlueStack(NestedStack):
             command=glue.CfnJob.JobCommandProperty(
                 name="pythonshell",
                 python_version="3.9",
-                script_location=f"s3://{buckets.get("scripts_bucket").bucket_name}/listings/curated_listings_upload.py",
+                script_location=f"s3://{buckets.get('scripts_bucket').bucket_name}/listings/curated/curated_listings_upload.py",
             ),
             default_arguments={
                 "library-set": "analytics",
                 "--enable-job-insights": "true",
                 "--job-language": "python",
-                "--customer-driver-env-vars": f"REGION={REGION}",
+                "--extra-py-files": f"s3://{buckets.get('scripts_bucket').bucket_name}/listings/utils/utils-0.1-py3-none-any.whl",
             },
             glue_version="4.0",
         )
@@ -200,7 +232,7 @@ class GlueStack(NestedStack):
                 ),
                 glue.CfnTrigger.ActionProperty(
                     job_name=curated_listings_upload_job.name,
-                )
+                ),
             ],
             schedule="cron(0 9 ? * MON *)",
             start_on_creation=False,
