@@ -36,6 +36,6 @@ jobs:
           aws-region: ${{ secrets.REGION }}
       - name: Deploy to AWS
         env:
-          ACCOUNT_ID: ${{ ACCOUNT_ID }}
+          ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
           REGION: ${{ secrets.REGION }}
         run: cdk deploy --app="python3 app.py" --require-approval=never
