@@ -1,3 +1,5 @@
+![Build](https://github.com/StephenODea54/ytown-listings/actions/workflows/cdk-deploy.yml/badge.svg)
+
 <a id="readme-top"></a>
 
 <!-- HEADER -->
