@@ -25,6 +25,6 @@ class EventbridgeStack(NestedStack):
         sns_failure_topic = sns.Topic(self, "YtownListingsSNSFailureTopic")
 
         sns_failure_topic.add_subscription(
-            subscriptions.EmailSubscription("odeastephen1@gmail.com")
+            subscriptions.EmailSubscription("hey@stephenodea.me")
         )
         glue_events_rule.add_target(targets.SnsTopic(sns_failure_topic))
