@@ -117,7 +117,6 @@ def main():
     # projects into the abyss? Is that how you spell abyss!?!?!?!?
     listing_df["as_of_date"] = date.today()
 
-    # data_client.to_parquet(listing_df)
     aws_client.upload_dataframe(df=listing_df, database="raw", table="listings")
 
 
