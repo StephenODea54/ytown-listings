@@ -218,23 +218,63 @@ class GlueStack(NestedStack):
             glue_version="4.0",
         )
 
-        glue_workflow_trigger = glue.CfnTrigger(
+        raw_listings_upload_trigger = glue.CfnTrigger(
             self,
-            id="YtownListingsGlueWorkflowTrigger",
-            name="YtownListingsGlueWorkflowTrigger",
+            id="YtownListingsRawListingsUploadTrigger",
+            name="YtownListingsRawListingsUploadTrigger",
             type="SCHEDULED",
             actions=[
                 glue.CfnTrigger.ActionProperty(
                     job_name=raw_listings_upload_job.name,
                 ),
-                glue.CfnTrigger.ActionProperty(
-                    job_name=staged_listings_upload_job.name,
-                ),
-                glue.CfnTrigger.ActionProperty(
-                    job_name=curated_listings_upload_job.name,
-                ),
             ],
             schedule="cron(0 9 ? * MON *)",
-            start_on_creation=False,
+            start_on_creation=True,
+            workflow_name=glue_workflow.name,
+        )
+
+        staged_listings_upload_trigger = glue.CfnTrigger(
+            self,
+            id="YtownListingsStagedListingsUploadTrigger",
+            name="YtownListingsStagedListingsUploadTrigger",
+            type="CONDITIONAL",
+            actions=[
+                glue.CfnTrigger.ActionProperty(
+                    job_name=staged_listings_upload_job.name,
+                )
+            ],
+            predicate=glue.CfnTrigger.PredicateProperty(
+                conditions=[
+                    glue.CfnTrigger.ConditionProperty(
+                        job_name=raw_listings_upload_job.name,
+                        state="SUCCEEDED",
+                        logical_operator="EQUALS",
+                    )
+                ]
+            ),
+            start_on_creation=True,
+            workflow_name=glue_workflow.name,
+        )
+
+        curated_listings_upload_trigger = glue.CfnTrigger(
+            self,
+            id="YtownListingsCuratedListingsUploadTrigger",
+            name="YtownListingsCuratedListingsUploadTrigger",
+            type="CONDITIONAL",
+            actions=[
+                glue.CfnTrigger.ActionProperty(
+                    job_name=curated_listings_upload_job.name,
+                )
+            ],
+            predicate=glue.CfnTrigger.PredicateProperty(
+                conditions=[
+                    glue.CfnTrigger.ConditionProperty(
+                        job_name=staged_listings_upload_job.name,
+                        state="SUCCEEDED",
+                        logical_operator="EQUALS",
+                    )
+                ]
+            ),
+            start_on_creation=True,
             workflow_name=glue_workflow.name,
         )
