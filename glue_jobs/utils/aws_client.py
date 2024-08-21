@@ -34,7 +34,7 @@ class AWSClient:
         except:
             return []
 
-    def get_secret(self, secret_name: str) -> str | bytes:
+    def get_secret(self, secret_name: str) -> Union[str, bytes]:
         return wr.secretsmanager.get_secret(secret_name, self.session)
 
     def read_query(self, sql: str, database: DATABASE) -> pd.DataFrame:
