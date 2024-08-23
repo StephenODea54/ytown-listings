@@ -156,8 +156,8 @@ class GlueStack(NestedStack):
 
         glue_workflow = glue.CfnWorkflow(
             self,
-            "YtownListingsGlueWorkflow",
-            name="YtownListingsGlueWorkflow",
+            "YtownListingsETLWorkflow",
+            name="YtownListingsETLWorkflow",
             max_concurrent_runs=3,
         )
 
