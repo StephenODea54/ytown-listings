@@ -21,7 +21,6 @@ class AWSClient:
         }
 
     def get_partitions(self, database: DATABASE, table: str) -> List[str]:
-        hi = _utils.client(service_name="glue")
         try:
             partitions_dict = wr.catalog.get_parquet_partitions(
                 database=f"ytown_listings_{database}_db",
