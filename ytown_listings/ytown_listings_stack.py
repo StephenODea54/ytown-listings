@@ -19,6 +19,8 @@ class YtownListingsStack(Stack):
 
         eventbridge_stack = EventbridgeStack(self)
 
+        secrets_stack = SecretsStack(self)
+
         glue_stack = GlueStack(
             self,
             buckets={
@@ -28,7 +30,6 @@ class YtownListingsStack(Stack):
                 "scripts_bucket": s3_stack.scripts_bucket,
                 "athena_bucket": s3_stack.athena_bucket,
             },
+            rapid_api_key=secrets_stack.rapid_api_key,
             workgroup=athena_stack.workgroup,
         )
-
-        secrets_stack = SecretsStack(self)

@@ -5,7 +5,7 @@ from aws_cdk import (
     aws_iam as iam,
     aws_s3 as s3,
     aws_s3_deployment as s3_deployment,
-    Fn,
+    aws_secretsmanager as sm,
     NestedStack,
 )
 from ytown_listings.config import ACCOUNT_ID, REGION
@@ -15,6 +15,7 @@ class GlueStack(NestedStack):
     def __init__(
         self,
         scope: Construct,
+        rapid_api_key: sm.Secret,
         buckets: dict[str, s3.Bucket],
         workgroup: athena.CfnWorkGroup,
     ) -> None:
@@ -39,6 +40,14 @@ class GlueStack(NestedStack):
             id="YtownListingsGlueJobPolicy",
             policy_name="YtownListingsGlueJobPolicy",
             statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "secretsmanager:GetSecretValue",
+                    ],
+                    resources=[
+                        rapid_api_key.secret_arn,
+                    ],
+                ),
                 iam.PolicyStatement(
                     actions=[
                         "s3:ListBucket",
