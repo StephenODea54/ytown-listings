@@ -3,6 +3,7 @@ import boto3
 import os
 import pandas as pd
 from awswrangler import _utils
+from awswrangler.typing import _S3WriteDataReturnValue
 from typing import List, Literal, Union
 
 
@@ -21,7 +22,6 @@ class AWSClient:
         }
 
     def get_partitions(self, database: DATABASE, table: str) -> List[str]:
-        hi = _utils.client(service_name="glue")
         try:
             partitions_dict = wr.catalog.get_parquet_partitions(
                 database=f"ytown_listings_{database}_db",
@@ -55,7 +55,7 @@ class AWSClient:
         df: pd.DataFrame,
         database: DATABASE,
         table: str,
-    ) -> wr.typing._S3WriteDataReturnValue:
+    ) -> _S3WriteDataReturnValue:
         return wr.s3.to_parquet(
             df=df,
             path=f"s3://{self.account_id}-ytown-listings-{database}/{table}",
