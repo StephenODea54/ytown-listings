@@ -87,7 +87,7 @@ def get_listing_results(
 def main():
     aws_client = AWSClient()
 
-    api_key = AWSClient.get_secret("RapidAPIKey")
+    api_key = aws_client.get_secret("RapidAPIKey")
 
     # All results will be concatenated into a single list
     # Something like a map state in AWS Step Functions would be nice here but that would
@@ -101,13 +101,13 @@ def main():
     total_pages = listing_results["totalPages"]
 
     # Subsequent Loops Assuming Pagination is Needed
-    for page in range(11, total_pages + 1):
+    for page in range(2, total_pages):
         listing_results = get_listing_results(
             api_key=api_key, listing_url=URL, page_num=page
         )
         listing_dfs.append(pd.json_normalize(listing_results["props"]))
 
-        time.sleep(2)
+        time.sleep(45)
 
     listing_df = pd.concat(listing_dfs)
 
