@@ -5,7 +5,7 @@ def main():
     aws_client = AWSClient()
 
     staged_partitions = aws_client.get_partitions(database="staged", table="listings")
-    curated_partitions = aws_client.get_partitions(database="staged", table="listings")
+    curated_partitions = aws_client.get_partitions(database="curated", table="listings")
 
     # Get Unprocessed Partitions
     # If a partition has already been processed, we don't want to overwrite history
