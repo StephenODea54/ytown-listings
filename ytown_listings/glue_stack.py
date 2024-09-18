@@ -91,6 +91,8 @@ class GlueStack(NestedStack):
                         "s3:AbortMultipartUpload",
                     ],
                     resources=[
+                        f"{buckets.get('raw_bucket').bucket_arn}/listings",
+                        f"{buckets.get('raw_bucket').bucket_arn}/listings/*",
                         f"{buckets.get('staged_bucket').bucket_arn}/listings",
                         f"{buckets.get('staged_bucket').bucket_arn}/listings/*",
                         f"{buckets.get('curated_bucket').bucket_arn}/listings",
