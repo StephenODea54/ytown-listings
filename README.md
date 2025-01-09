@@ -14,8 +14,6 @@
     A serverless ELT pipeline for analyzing the Youngstown, OH real estate market.
     <br />
     <br />
-    <a href="https://metabase.stephenodea.me/public/dashboard/1bb4cb2e-ad20-454a-987b-1efec48ddc55?tab=34-overview&as_of_date=&city=&zip_code=">Product Demo</a>
-    ·
     <a href="https://github.com/stephenodea54/ytown-listings/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
     ·
     <a href="https://github.com/stephenodea54/ytown-listings/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
@@ -80,9 +78,7 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-<a href="https://metabase.stephenodea.me/public/dashboard/1bb4cb2e-ad20-454a-987b-1efec48ddc55?tab=34-overview&as_of_date=&city=&zip_code=">
-    <img src="images/product_demo.png" alt="Logo">
-</a>
+<img src="images/product_demo.png" alt="Logo">
 
 ### Project Overview
 
